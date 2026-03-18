@@ -1,0 +1,73 @@
+source_book_id,target_book_id,relationship_type,relationship_strength,relationship_reason,display_on_hover,display_on_click
+B001,B030,related,2,Shared focus on behavior change and intentional practice,false,true
+B001,B041,related,2,Complementary perspective on habits and life design,false,true
+B001,B043,related,2,Common interest in systems sized for human flourishing,false,true
+B002,B008,related,3,"Connection through gathering, care, and human relationship",true,true
+B002,B017,related,2,Shared relevance to social connection and community practice,false,true
+B002,B036,related,3,Both connect relational design to collective action,true,true
+B003,B040,related,3,Shared exploration of meaning and life purpose,true,true
+B003,B044,related,3,Both invite reflection on vocation and deeper purpose,true,true
+B003,B022,related,2,Meaning pursued through journey and inner calling,false,true
+B004,B027,related,3,Shared ecological and reciprocal worldview,true,true
+B004,B039,related,2,"Common attention to place, nature, and practice",false,true
+B004,B046,related,2,"Themes of land, memory, and interdependence",false,true
+B005,B015,related,2,Wonder expressed through accessible and beloved form,false,true
+B005,B021,related,2,"Shared tone of attention, tenderness, and reflection",false,true
+B006,B029,related,3,Both ask what love requires beyond sentiment,true,true
+B006,B050,related,2,Relationship framed with tenderness and spiritual depth,false,true
+B007,B014,related,3,Spiritual reflection on suffering and openness,true,true
+B007,B031,related,2,Poetic spiritual language and hospitality to life,false,true
+B007,B047,related,3,Shared contemplative approach to fear and impermanence,true,true
+B008,B018,related,2,Relationship joined with community and responsibility,false,true
+B008,B029,related,3,Love treated as a practice and discipline,true,true
+B009,B035,related,2,Belonging reimagined under pressure and instability,false,true
+B009,B046,related,2,Interdependence expressed through land and story,false,true
+B010,B033,related,2,Practical spiritual framing for everyday life,false,true
+B010,B044,related,3,Growth and vocation approached with warmth and reflection,true,true
+B011,B031,related,2,Spiritual interiority expressed through lyrical form,false,true
+B011,B050,related,2,"Grace, soul, and relationship as sustaining forces",false,true
+B012,B026,related,2,Belonging examined through movement and social imagination,false,true
+B012,B028,related,2,Institutions and belonging in public life,false,true
+B012,B032,related,3,Systemic structures shaping identity and opportunity,true,true
+B013,B021,related,2,Mortality and vulnerability met with gentleness,false,true
+B013,B043,related,2,Dignity and scale in human-centered systems,false,true
+B014,B033,related,2,Practical spiritual guidance for difficult moments,false,true
+B014,B047,related,3,Compassionate approach to fear and uncertainty,true,true
+B016,B023,related,2,"Choice, judgment, and the stories people tell about outcomes",false,true
+B016,B024,related,3,Chance and cognition explored in accessible ways,true,true
+B016,B045,related,2,Alternative futures and doubts about progress,false,true
+B017,B026,related,2,Human cooperation and mutual support,false,true
+B017,B036,related,3,Community practice and relational change,true,true
+B018,B044,related,2,Calling and relationship shaped by inner life,false,true
+B018,B050,related,3,Spiritual depth in human connection,true,true
+B019,B025,related,2,Ethics and moral reasoning in divided contexts,false,true
+B019,B028,related,2,Leadership tied to civic courage,false,true
+B019,B037,related,2,Values and generosity in public life,false,true
+B020,B027,related,3,Shared concern for reciprocity and abundance,true,true
+B020,B036,related,2,Purpose linked to systems and relational practice,false,true
+B020,B037,related,3,"Money, gift, and generosity beyond transaction",true,true
+B021,B030,related,2,"Attention, pace, and the conditions for a meaningful life",false,true
+B022,B015,related,2,"Accessible, symbolic journeys toward meaning",false,true
+B023,B024,related,3,Behavioral science and decision making,true,true
+B023,B045,related,2,Questioning assumptions about rational control and progress,false,true
+B024,B049,related,2,"Risk, uncertainty, and judgment at different scales",false,true
+B025,B028,related,2,Ethics and public life,false,true
+B025,B049,related,2,Moral reasoning under uncertainty,false,true
+B026,B032,related,2,Shared challenge to narrow narratives about hierarchy and human worth,false,true
+B027,B037,related,3,Gift economies and non-transactional value,true,true
+B028,B032,related,2,Belonging shaped by power and exclusion,false,true
+B029,B050,related,2,"Love, soul, and the deep interior life of relationship",false,true
+B030,B041,related,2,"Purpose supported by attention, environment, and practice",false,true
+B031,B047,related,2,Spiritual spaciousness in the face of fear and change,false,true
+B033,B047,related,2,Practical spiritual clarity and calm,false,true
+B034,B040,related,3,Mythic structure and meaning-making,true,true
+B034,B044,related,2,Narrative and calling,false,true
+B034,B038,related,2,Epic story as a carrier of enduring pattern,false,true
+B035,B048,related,2,Belonging and healing in the wake of rupture,false,true
+B038,B040,related,2,Journey narratives and transformation,false,true
+B039,B046,related,2,"Place, memory, and living relationship with land",false,true
+B039,B048,related,2,"Beauty, attention, and the shaping power of place",false,true
+B041,B043,related,2,Human flourishing shaped by environments and scale,false,true
+B045,B049,related,2,Contingency and the long future,false,true
+B046,B042,related,2,"Nature, memory, and belonging through story",false,true
+B048,B050,related,2,Healing and relational depth,false,true

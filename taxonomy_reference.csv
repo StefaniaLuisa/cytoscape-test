@@ -1,0 +1,16 @@
+taxonomy_type,taxonomy_key,value,description,max_allowed,required,display_in_filters,display_in_inspector,display_in_expanded_view
+pillar,pillar,Belonging,"Connection to community, identity, and collective experience",1,true,true,true,true
+pillar,pillar,Relationship,"Human connection, care, and interpersonal life",1,true,true,true,true
+pillar,pillar,Awe & Wonder,"Curiosity, beauty, discovery, and appreciation",1,true,true,true,true
+pillar,pillar,Purpose & Meaning,"Meaning, vocation, direction, and significance",1,true,true,true,true
+pillar,pillar,Luck & Randomness,"Chance, uncertainty, contingency, and decision-making",1,true,true,true,true
+pillar,pillar,Philosophy & Spirituality,"Ethics, belief systems, spiritual reflection, and existential inquiry",1,true,true,true,true
+secondary_category,secondary_category,Philosophy,Philosophical inquiry and interpretation,3,false,true,true,true
+secondary_category,secondary_category,Spirituality,"Spiritual practices, traditions, and reflection",3,false,true,true,true
+secondary_category,secondary_category,Fiction,Narrative and literary storytelling,3,false,true,true,true
+secondary_category,secondary_category,Non-fiction,"Informational, reflective, or real-world content",3,false,true,true,true
+secondary_category,secondary_category,Philanthropy,Relevant to giving and social impact,3,false,true,true,true
+secondary_category,secondary_category,Book Club,Suitable for discussion groups,3,false,true,true,true
+secondary_category,secondary_category,Core/Essentials,"Foundational, high-value, or must-read works",3,false,true,true,true
+secondary_category,secondary_category,Sally’s Pick,Curated or featured selections,3,false,true,true,true
+secondary_category,secondary_category,Wisdom Traditions,Rooted in enduring cultural or spiritual traditions,3,false,true,true,true
