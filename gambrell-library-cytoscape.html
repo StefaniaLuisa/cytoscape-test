@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gambrell – The Library | Book Connection Graph</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; overflow: hidden; height: 100vh; }
+
+    /* ── Header ── */
+    header {
+      height: 52px; background: #1a1a2e; color: #fff;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px; flex-shrink: 0; position: relative; z-index: 100;
+    }
+    header h1 { font-size: 15px; font-weight: 600; }
+    .hdr-sub { opacity: .65; font-weight: 400; }
+    .hdr-sep { opacity: .3; margin: 0 7px; }
+    .hdr-right { font-size: 12px; opacity: .5; }
+
+    /* ── Layout ── */
+    .layout { display: flex; height: calc(100vh - 52px); position: relative; overflow: hidden; }
+
+    /* ── Canvas ── */
+    .canvas-wrap { flex: 1; position: relative; background: #fafbfc; }
+    #cy { width: 100%; height: 100%; }
+
+    /* ── Filter bar ── */
+    .filterbar {
+      position: absolute; top: 12px; left: 14px;
+      display: flex; gap: 6px; flex-wrap: wrap; z-index: 10;
+    }
+    .chip {
+      padding: 4px 13px; border-radius: 20px; font-size: 11px; font-weight: 600;
+      cursor: pointer; border: 2px solid; transition: opacity .15s, transform .1s;
+      user-select: none; white-space: nowrap;
+    }
+    .chip:hover { transform: translateY(-1px); }
+    .chip.off { opacity: .3; }
+    .chip-clear {
+      padding: 4px 13px; border-radius: 20px; font-size: 11px; font-weight: 600;
+      cursor: pointer; border: 2px solid #9ca3af; color: #6b7280; background: transparent;
+      transition: all .15s; display: none;
+    }
+    .chip-clear.visible { display: inline-block; }
+    .chip-clear:hover { border-color: #374151; color: #374151; }
+
+    /* ── Zoom controls ── */
+    .controls {
+      position: absolute; bottom: 58px; right: 14px;
+      display: flex; flex-direction: column; gap: 4px; z-index: 10;
+    }
+    .ctrl-btn {
+      width: 32px; height: 32px; border: 1px solid #e5e7eb; border-radius: 6px;
+      background: #fff; cursor: pointer; font-size: 16px; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      color: #374151; transition: background .12s;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08); user-select: none;
+    }
+    .ctrl-btn:hover { background: #f3f4f6; }
+
+    /* ── Edge strength legend ── */
+    .legend {
+      position: absolute; bottom: 26px; left: 14px;
+      background: rgba(255,255,255,.97); border: 1px solid #e5e7eb;
+      border-radius: 8px; padding: 10px 14px; font-size: 11px;
+      z-index: 10; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .legend-section { margin-bottom: 8px; }
+    .legend-section:last-child { margin-bottom: 0; }
+    .legend-title {
+      font-weight: 700; font-size: 10px; text-transform: uppercase;
+      letter-spacing: .08em; color: #9ca3af; margin-bottom: 5px;
+    }
+    .legend-row { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; color: #374151; }
+    .legend-row:last-child { margin-bottom: 0; }
+    .legend-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+    .legend-line { height: 2px; border-radius: 1px; flex-shrink: 0; }
+    .legend-line.s1 { width: 20px; background: #d1d5db; }
+    .legend-line.s2 { width: 20px; background: #9ca3af; height: 3px; }
+    .legend-line.s3 { width: 20px; background: #6b7280; height: 4px; }
+
+    /* ── Status bar ── */
+    .statusbar {
+      position: absolute; bottom: 8px; right: 14px;
+      font-size: 11px; color: #9ca3af; z-index: 10;
+    }
+
+    /* ── Tooltip ── */
+    .tooltip {
+      position: fixed; background: rgba(26,26,46,.93); color: #fff;
+      padding: 8px 12px; border-radius: 7px; font-size: 12px;
+      pointer-events: none; opacity: 0; max-width: 240px;
+      line-height: 1.45; z-index: 9999; transition: opacity .1s;
+      box-shadow: 0 4px 12px rgba(0,0,0,.2);
+    }
+    .tt-title { font-weight: 600; margin-bottom: 2px; font-size: 13px; }
+    .tt-author { opacity: .75; font-size: 11px; }
+    .tt-pillar { margin-top: 5px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; }
+    .tt-reason { margin-top: 5px; font-size: 11px; opacity: .8; font-style: italic; border-top: 1px solid rgba(255,255,255,.15); padding-top: 5px; }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 360px; min-width: 360px; height: 100%; background: #fff;
+      border-left: 1px solid #e5e7eb; display: flex; flex-direction: column;
+      transform: translateX(100%); transition: transform .3s cubic-bezier(.4,0,.2,1);
+      position: absolute; right: 0; top: 0; z-index: 30;
+      box-shadow: -4px 0 28px rgba(0,0,0,.1);
+    }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-header {
+      padding: 13px 16px 11px; border-bottom: 1px solid #e5e7eb;
+      display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+    }
+    .sb-type {
+      font-size: 10px; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: #6b7280;
+    }
+    .sidebar-close {
+      background: none; border: none; cursor: pointer; color: #9ca3af;
+      font-size: 22px; line-height: 1; padding: 2px 5px; border-radius: 4px;
+      transition: all .12s;
+    }
+    .sidebar-close:hover { background: #f3f4f6; color: #374151; }
+    .sidebar-body { flex: 1; overflow-y: auto; }
+
+    /* Cover banner */
+    .cover-banner {
+      width: 100%; height: 145px; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0;
+    }
+    .cover-book {
+      width: 82px; height: 115px; border-radius: 6px;
+      box-shadow: 0 6px 24px rgba(0,0,0,.22);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; font-weight: 900; color: #fff; letter-spacing: -1px;
+      text-align: center; line-height: 1;
+    }
+
+    /* Sidebar content */
+    .sb-content { padding: 16px 18px 32px; }
+    .sb-title { font-size: 18px; font-weight: 800; line-height: 1.25; margin-bottom: 3px; color: #1a1a2e; }
+    .sb-author { font-size: 13px; color: #6b7280; margin-bottom: 12px; }
+    .pillar-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 700; margin-bottom: 10px;
+    }
+    .pillar-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .tags-row { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 14px; }
+    .tag-pill { padding: 3px 9px; border-radius: 20px; font-size: 11px; background: #f3f4f6; color: #374151; }
+    .sb-divider { border: none; border-top: 1px solid #f3f4f6; margin: 14px 0; }
+    .sb-section { margin-bottom: 14px; }
+    .sb-label {
+      font-size: 10px; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: #9ca3af; margin-bottom: 5px;
+    }
+    .sb-text { font-size: 13px; color: #374151; line-height: 1.65; }
+    .sb-text.commentary {
+      font-style: italic; color: #4b5563;
+      border-left: 3px solid #e5e7eb; padding-left: 10px;
+    }
+    .related-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+    .related-pill {
+      padding: 3px 9px; border-radius: 20px; font-size: 11px;
+      background: #f3f4f6; color: #374151; cursor: pointer;
+      border: 1px solid #e5e7eb; transition: all .12s;
+    }
+    .related-pill:hover { background: #e5e7eb; border-color: #d1d5db; }
+    .learn-more-btn {
+      display: block; width: 100%; padding: 11px; background: #1a1a2e; color: #fff;
+      border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
+      cursor: pointer; text-align: center; text-decoration: none;
+      transition: background .15s; margin-bottom: 8px;
+    }
+    .learn-more-btn:hover { background: #2d2d4e; }
+    .bookmark-btn {
+      display: block; width: 100%; padding: 10px; background: transparent;
+      color: #6b7280; border: 1.5px solid #e5e7eb; border-radius: 8px;
+      font-size: 13px; font-weight: 500; cursor: pointer; text-align: center;
+      transition: all .15s;
+    }
+    .bookmark-btn:hover { border-color: #1a1a2e; color: #1a1a2e; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Gambrell<span class="hdr-sep">/</span><span class="hdr-sub">The Library — Book Connection Graph</span></h1>
+  <span class="hdr-right">Gambrell Foundation Library</span>
+</header>
+
+<div class="layout">
+  <div class="canvas-wrap">
+    <div class="filterbar" id="filterbar"></div>
+    <div id="cy"></div>
+    <div class="controls">
+      <button class="ctrl-btn" id="btn-fit" title="Fit to view">⌖</button>
+      <button class="ctrl-btn" id="btn-zin" title="Zoom in">+</button>
+      <button class="ctrl-btn" id="btn-zout" title="Zoom out">−</button>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="statusbar" id="statusbar"></div>
+    <div class="tooltip" id="tooltip"></div>
+  </div>
+
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span class="sb-type" id="sb-type">BOOK</span>
+      <button class="sidebar-close" id="sb-close">×</button>
+    </div>
+    <div class="sidebar-body" id="sb-body">
+      <p style="padding:24px 18px;color:#9ca3af;font-size:13px;line-height:1.6">
+        Click any book node to view details, synopsis, and Gambrell commentary.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════
+   DATA
+   ════════════════════════════════════════════════ */
+
+const PILLAR_COLOR = {
+  'Belonging':               '#7c3aed',
+  'Relationship':            '#db2777',
+  'Awe & Wonder':            '#0284c7',
+  'Purpose & Meaning':       '#b45309',
+  'Luck & Randomness':       '#16a34a',
+  'Philosophy & Spirituality': '#7e22ce'
+};
+
+const PILLARS = [
+  { id: 'p-belonging',    label: 'Belonging',               color: '#7c3aed' },
+  { id: 'p-relationship', label: 'Relationship',            color: '#db2777' },
+  { id: 'p-awe',          label: 'Awe & Wonder',            color: '#0284c7' },
+  { id: 'p-purpose',      label: 'Purpose & Meaning',       color: '#b45309' },
+  { id: 'p-luck',         label: 'Luck & Randomness',       color: '#16a34a' },
+  { id: 'p-philosophy',   label: 'Philosophy & Spirituality', color: '#7e22ce' }
+];
+
+const BOOKS = [
+  { id:'B001', slug:'atomic-habits', title:'Atomic Habits', author:'James Clear', pillar:'Purpose & Meaning', secondary:['Non-fiction','Core/Essentials'], synopsis:'A practical guide to how small repeated behaviors shape long-term outcomes.', commentary:'Useful because it makes personal and organizational change feel achievable through systems, not willpower alone.', postUrl:'/library/atomic-habits/', externalUrl:'https://example.org/buy/atomic-habits', related:['B030','B041','B043'] },
+  { id:'B002', slug:'the-art-of-gathering', title:'The Art of Gathering', author:'Priya Parker', pillar:'Belonging', secondary:['Non-fiction','Book Club'], synopsis:'A book about how intentional gatherings can create deeper connection and purpose.', commentary:'Helpful because it reframes gathering as something shaped with care, which is central to how people build belonging.', postUrl:'/library/the-art-of-gathering/', externalUrl:'https://example.org/buy/the-art-of-gathering', related:['B008','B017','B036'] },
+  { id:'B003', slug:'mans-search-for-meaning', title:"Man's Search for Meaning", author:'Viktor E. Frankl', pillar:'Purpose & Meaning', secondary:['Philosophy','Core/Essentials'], synopsis:'A classic exploration of meaning, suffering, and human resilience.', commentary:'A foundational title for thinking about what sustains people through uncertainty and why meaning matters in real life.', postUrl:'/library/mans-search-for-meaning/', externalUrl:'https://example.org/buy/mans-search-for-meaning', related:['B040','B044','B022'] },
+  { id:'B004', slug:'braiding-sweetgrass', title:'Braiding Sweetgrass', author:'Robin Wall Kimmerer', pillar:'Awe & Wonder', secondary:['Non-fiction','Wisdom Traditions'], synopsis:'An essay collection weaving Indigenous knowledge, ecology, and gratitude.', commentary:'Important because it links wonder with reciprocity and reminds readers that care and attention shape how we live together.', postUrl:'/library/braiding-sweetgrass/', externalUrl:'https://example.org/buy/braiding-sweetgrass', related:['B027','B039','B046'] },
+  { id:'B005', slug:'the-book-of-delights', title:'The Book of Delights', author:'Ross Gay', pillar:'Awe & Wonder', secondary:['Non-fiction',"Sally's Pick"], synopsis:'A series of brief essays noticing delight in ordinary life.', commentary:'A lovely reminder that attention itself can be a practice, and that delight can expand how we move through the world.', postUrl:'/library/the-book-of-delights/', externalUrl:'https://example.org/buy/the-book-of-delights', related:['B015','B021','B042'] },
+  { id:'B006', slug:'the-giving-tree', title:'The Giving Tree', author:'Shel Silverstein', pillar:'Relationship', secondary:['Fiction'], synopsis:'A short illustrated story about generosity, attachment, and care.', commentary:'A familiar book that still opens strong questions about love, reciprocity, and what healthy giving looks like.', postUrl:'/library/the-giving-tree/', externalUrl:'https://example.org/buy/the-giving-tree', related:['B015','B029','B050'] },
+  { id:'B007', slug:'the-prophet', title:'The Prophet', author:'Kahlil Gibran', pillar:'Philosophy & Spirituality', secondary:['Philosophy','Spirituality','Wisdom Traditions'], synopsis:'A poetic meditation on love, work, joy, sorrow, and the human condition.', commentary:'A concise and enduring work that offers spiritual reflection without losing emotional warmth.', postUrl:'/library/the-prophet/', externalUrl:'https://example.org/buy/the-prophet', related:['B014','B031','B047'] },
+  { id:'B008', slug:'all-about-love', title:'All About Love', author:'bell hooks', pillar:'Relationship', secondary:['Non-fiction','Core/Essentials'], synopsis:'A reflection on love as an ethic, practice, and social force.', commentary:'Important because it treats love as something active and transformative, not just personal sentiment.', postUrl:'/library/all-about-love/', externalUrl:'https://example.org/buy/all-about-love', related:['B002','B018','B029'] },
+  { id:'B009', slug:'the-overstory', title:'The Overstory', author:'Richard Powers', pillar:'Belonging', secondary:['Fiction','Book Club'], synopsis:'An expansive novel connecting human lives to the life of trees.', commentary:'A powerful literary way into interdependence, shared responsibility, and belonging within a larger living world.', postUrl:'/library/the-overstory/', externalUrl:'https://example.org/buy/the-overstory', related:['B004','B035','B046'] },
+  { id:'B010', slug:'the-road-less-traveled', title:'The Road Less Traveled', author:'M. Scott Peck', pillar:'Purpose & Meaning', secondary:['Spirituality','Non-fiction'], synopsis:'A self-help classic about discipline, love, and spiritual growth.', commentary:'Relevant because it speaks to the long work of becoming and the tension between comfort and growth.', postUrl:'/library/the-road-less-traveled/', externalUrl:'https://example.org/buy/the-road-less-traveled', related:['B033','B044','B003'] },
+  { id:'B011', slug:'gilead', title:'Gilead', author:'Marilynne Robinson', pillar:'Philosophy & Spirituality', secondary:['Fiction','Book Club'], synopsis:'A quiet novel in the form of a letter from a father to his son.', commentary:'A deeply humane book that makes room for grace, memory, and spiritual reflection without forcing certainty.', postUrl:'/library/gilead/', externalUrl:'https://example.org/buy/gilead', related:['B022','B031','B050'] },
+  { id:'B012', slug:'the-warmth-of-other-suns', title:'The Warmth of Other Suns', author:'Isabel Wilkerson', pillar:'Belonging', secondary:['Non-fiction','Core/Essentials'], synopsis:'A history of the Great Migration told through individual lives.', commentary:'An important book for understanding how systems and movement shape belonging, opportunity, and identity.', postUrl:'/library/the-warmth-of-other-suns/', externalUrl:'https://example.org/buy/the-warmth-of-other-suns', related:['B026','B028','B032'] },
+  { id:'B013', slug:'being-mortal', title:'Being Mortal', author:'Atul Gawande', pillar:'Purpose & Meaning', secondary:['Non-fiction'], synopsis:'A book about aging, mortality, and what matters most near the end of life.', commentary:'Useful because it grounds big questions of purpose in real decisions about dignity, care, and autonomy.', postUrl:'/library/being-mortal/', externalUrl:'https://example.org/buy/being-mortal', related:['B021','B043','B003'] },
+  { id:'B014', slug:'when-things-fall-apart', title:'When Things Fall Apart', author:'Pema Chödrön', pillar:'Philosophy & Spirituality', secondary:['Spirituality','Wisdom Traditions'], synopsis:'A Buddhist-inspired reflection on uncertainty, fear, and compassion.', commentary:'A helpful companion for moments when life feels unsettled and certainty is out of reach.', postUrl:'/library/when-things-fall-apart/', externalUrl:'https://example.org/buy/when-things-fall-apart', related:['B007','B033','B047'] },
+  { id:'B015', slug:'the-little-prince', title:'The Little Prince', author:'Antoine de Saint-Exupéry', pillar:'Awe & Wonder', secondary:['Fiction','Core/Essentials'], synopsis:'A beloved novella about imagination, love, and seeing what matters.', commentary:'A simple but enduring invitation to take wonder seriously and resist flattening the world into utility.', postUrl:'/library/the-little-prince/', externalUrl:'https://example.org/buy/the-little-prince', related:['B005','B006','B022'] },
+  { id:'B016', slug:'the-midnight-library', title:'The Midnight Library', author:'Matt Haig', pillar:'Luck & Randomness', secondary:['Fiction','Book Club'], synopsis:'A novel imagining alternate lives built from different choices.', commentary:'A readable way into questions of contingency, regret, and how people make sense of paths not taken.', postUrl:'/library/the-midnight-library/', externalUrl:'https://example.org/buy/the-midnight-library', related:['B023','B024','B045'] },
+  { id:'B017', slug:'how-we-show-up', title:'How We Show Up', author:'Mia Birdsong', pillar:'Belonging', secondary:['Non-fiction','Philanthropy'], synopsis:'A book about mutual care, community, and interdependence beyond individualism.', commentary:'Important because it names how support actually happens and challenges narrow ideas of success and self-sufficiency.', postUrl:'/library/how-we-show-up/', externalUrl:'https://example.org/buy/how-we-show-up', related:['B002','B026','B036'] },
+  { id:'B018', slug:'the-amen-effect', title:'The Amen Effect', author:'Sharon Brous', pillar:'Relationship', secondary:['Spirituality','Non-fiction'], synopsis:'A reflection on how spiritual life and community can deepen human connection.', commentary:'Useful because it ties relationship to responsibility and insists that we need one another.', postUrl:'/library/the-amen-effect/', externalUrl:'https://example.org/buy/the-amen-effect', related:['B008','B044','B050'] },
+  { id:'B019', slug:'moral-leadership-for-a-divided-age', title:'Moral Leadership for a Divided Age', author:'David P. Gushee', pillar:'Philosophy & Spirituality', secondary:['Philosophy','Non-fiction'], synopsis:'A book about ethics, leadership, and moral courage in fractured times.', commentary:'Relevant because it links values to action and asks what principled leadership requires under pressure.', postUrl:'/library/moral-leadership-for-a-divided-age/', externalUrl:'https://example.org/buy/moral-leadership-for-a-divided-age', related:['B025','B028','B037'] },
+  { id:'B020', slug:'the-soul-of-money', title:'The Soul of Money', author:'Lynne Twist', pillar:'Purpose & Meaning', secondary:['Philanthropy','Non-fiction','Core/Essentials'], synopsis:'A reflection on money, sufficiency, and generosity.', commentary:'A strong fit for Gambrell because it asks how resources can align with values, relationship, and deeper purpose.', postUrl:'/library/the-soul-of-money/', externalUrl:'https://example.org/buy/the-soul-of-money', related:['B027','B036','B037'] },
+  { id:'B021', slug:'wintering', title:'Wintering', author:'Katherine May', pillar:'Awe & Wonder', secondary:['Non-fiction',"Sally's Pick"], synopsis:'A meditation on retreat, resilience, and seasonal change.', commentary:'A gentle book that validates slower seasons and helps readers see pause as part of life rather than failure.', postUrl:'/library/wintering/', externalUrl:'https://example.org/buy/wintering', related:['B005','B013','B030'] },
+  { id:'B022', slug:'the-alchemist', title:'The Alchemist', author:'Paulo Coelho', pillar:'Purpose & Meaning', secondary:['Fiction','Spirituality'], synopsis:'A widely read novel about destiny, risk, and listening for meaning.', commentary:"Its appeal is its simplicity: it invites reflection on longing, direction, and what it means to pursue a life that feels true.", postUrl:'/library/the-alchemist/', externalUrl:'https://example.org/buy/the-alchemist', related:['B003','B011','B015'] },
+  { id:'B023', slug:'the-undoing-project', title:'The Undoing Project', author:'Michael Lewis', pillar:'Luck & Randomness', secondary:['Non-fiction'], synopsis:'A narrative account of the thinkers behind behavioral economics and judgment research.', commentary:'Useful because it offers a compelling way to think about decision making, bias, and the limits of rational certainty.', postUrl:'/library/the-undoing-project/', externalUrl:'https://example.org/buy/the-undoing-project', related:['B016','B024','B045'] },
+  { id:'B024', slug:'thinking-fast-and-slow', title:'Thinking, Fast and Slow', author:'Daniel Kahneman', pillar:'Luck & Randomness', secondary:['Non-fiction','Core/Essentials'], synopsis:'A foundational book on cognitive bias, judgment, and decision-making.', commentary:'A useful anchor text for understanding how people assess risk, chance, and uncertainty.', postUrl:'/library/thinking-fast-and-slow/', externalUrl:'https://example.org/buy/thinking-fast-and-slow', related:['B016','B023','B049'] },
+  { id:'B025', slug:'the-righteous-mind', title:'The Righteous Mind', author:'Jonathan Haidt', pillar:'Philosophy & Spirituality', secondary:['Philosophy','Non-fiction'], synopsis:'A book about moral psychology and why people disagree.', commentary:'Helpful for readers trying to understand ethical difference without collapsing into caricature.', postUrl:'/library/the-righteous-mind/', externalUrl:'https://example.org/buy/the-righteous-mind', related:['B019','B028','B049'] },
+  { id:'B026', slug:'humankind', title:'Humankind', author:'Rutger Bregman', pillar:'Belonging', secondary:['Non-fiction','Book Club'], synopsis:'A provocative argument that people are more cooperative and decent than often assumed.', commentary:'A strong conversation starter that pushes back on scarcity narratives about human nature.', postUrl:'/library/humankind/', externalUrl:'https://example.org/buy/humankind', related:['B012','B017','B032'] },
+  { id:'B027', slug:'the-serviceberry', title:'The Serviceberry', author:'Robin Wall Kimmerer', pillar:'Relationship', secondary:['Non-fiction','Philanthropy','Wisdom Traditions'], synopsis:'A short work about gift economies, reciprocity, and relational abundance.', commentary:'Especially resonant for philanthropy because it invites giving rooted in reciprocity rather than extraction.', postUrl:'/library/the-serviceberry/', externalUrl:'https://example.org/buy/the-serviceberry', related:['B004','B020','B037'] },
+  { id:'B028', slug:'on-tyranny', title:'On Tyranny', author:'Timothy Snyder', pillar:'Belonging', secondary:['Non-fiction','Core/Essentials'], synopsis:'A concise civic handbook about democratic responsibility and public life.', commentary:'Useful when thinking about how belonging depends on institutions, participation, and shared courage.', postUrl:'/library/on-tyranny/', externalUrl:'https://example.org/buy/on-tyranny', related:['B012','B019','B025'] },
+  { id:'B029', slug:'the-art-of-loving', title:'The Art of Loving', author:'Erich Fromm', pillar:'Relationship', secondary:['Philosophy','Non-fiction'], synopsis:'A classic reflection on love as practice, discipline, and art.', commentary:'It treats relationship as something cultivated with intention rather than merely felt.', postUrl:'/library/the-art-of-loving/', externalUrl:'https://example.org/buy/the-art-of-loving', related:['B006','B008','B050'] },
+  { id:'B030', slug:'stolen-focus', title:'Stolen Focus', author:'Johann Hari', pillar:'Purpose & Meaning', secondary:['Non-fiction','Book Club'], synopsis:'A book about attention, distraction, and the conditions that shape focus.', commentary:'Useful because it links personal attention to social systems and asks what conditions support meaningful work.', postUrl:'/library/stolen-focus/', externalUrl:'https://example.org/buy/stolen-focus', related:['B001','B021','B041'] },
+  { id:'B031', slug:'the-guest-house', title:'The Guest House', author:'Rumi', pillar:'Philosophy & Spirituality', secondary:['Spirituality','Wisdom Traditions'], synopsis:'A brief poem about welcoming the full range of human experience.', commentary:'A compact and generous text that invites openness, humility, and spiritual spaciousness.', postUrl:'/library/the-guest-house/', externalUrl:'https://example.org/buy/the-guest-house', related:['B007','B011','B047'] },
+  { id:'B032', slug:'caste', title:'Caste', author:'Isabel Wilkerson', pillar:'Belonging', secondary:['Non-fiction','Core/Essentials'], synopsis:'A book examining entrenched social hierarchy and its consequences.', commentary:'Important because it shows how belonging can be shaped and distorted by durable systems of exclusion.', postUrl:'/library/caste/', externalUrl:'https://example.org/buy/caste', related:['B012','B026','B035'] },
+  { id:'B033', slug:'the-four-agreements', title:'The Four Agreements', author:'Don Miguel Ruiz', pillar:'Philosophy & Spirituality', secondary:['Spirituality','Core/Essentials'], synopsis:'A brief spiritual guide centered on four practices for daily life.', commentary:'Its strength is its simplicity, offering memorable principles readers can carry into everyday interactions.', postUrl:'/library/the-four-agreements/', externalUrl:'https://example.org/buy/the-four-agreements', related:['B010','B014','B047'] },
+  { id:'B034', slug:'the-power-of-myth', title:'The Power of Myth', author:'Joseph Campbell', pillar:'Awe & Wonder', secondary:['Philosophy','Wisdom Traditions','Non-fiction'], synopsis:'A conversation about myth, symbol, and the enduring patterns of meaning-making.', commentary:'Helpful because it shows how stories organize inner life and collective imagination.', postUrl:'/library/the-power-of-myth/', externalUrl:'https://example.org/buy/the-power-of-myth', related:['B038','B040','B044'] },
+  { id:'B035', slug:'parable-of-the-sower', title:'Parable of the Sower', author:'Octavia E. Butler', pillar:'Belonging', secondary:['Fiction','Book Club'], synopsis:'A speculative novel about collapse, adaptation, and building a new community.', commentary:'A powerful book for thinking about belonging under pressure and how communities form in response to instability.', postUrl:'/library/parable-of-the-sower/', externalUrl:'https://example.org/buy/parable-of-the-sower', related:['B009','B032','B048'] },
+  { id:'B036', slug:'emergent-strategy', title:'Emergent Strategy', author:'adrienne maree brown', pillar:'Relationship', secondary:['Philanthropy','Non-fiction','Core/Essentials'], synopsis:'A book about change, adaptation, and relational practice inspired by living systems.', commentary:'A strong fit because it ties strategy to relationship, scale, and the quality of how people work together.', postUrl:'/library/emergent-strategy/', externalUrl:'https://example.org/buy/emergent-strategy', related:['B002','B017','B020'] },
+  { id:'B037', slug:'the-gift', title:'The Gift', author:'Lewis Hyde', pillar:'Philosophy & Spirituality', secondary:['Philanthropy','Philosophy','Non-fiction'], synopsis:'A reflection on creativity, exchange, and the meaning of gifts beyond markets.', commentary:'Especially relevant where art, generosity, and philanthropy overlap in thoughtful ways.', postUrl:'/library/the-gift/', externalUrl:'https://example.org/buy/the-gift', related:['B019','B020','B027'] },
+  { id:'B038', slug:'the-odyssey', title:'The Odyssey', author:'Homer', pillar:'Purpose & Meaning', secondary:['Fiction','Wisdom Traditions'], synopsis:'An epic journey home shaped by danger, endurance, and identity.', commentary:'A classic story of return, testing, and purpose that still resonates as a map of human striving.', postUrl:'/library/the-odyssey/', externalUrl:'https://example.org/buy/the-odyssey', related:['B034','B040','B042'] },
+  { id:'B039', slug:'the-practice-of-the-wild', title:'The Practice of the Wild', author:'Gary Snyder', pillar:'Awe & Wonder', secondary:['Philosophy','Non-fiction'], synopsis:'A set of essays on nature, culture, and attention to place.', commentary:'Useful because it links wonder to discipline and to a more grounded relationship with the living world.', postUrl:'/library/the-practice-of-the-wild/', externalUrl:'https://example.org/buy/the-practice-of-the-wild', related:['B004','B046','B048'] },
+  { id:'B040', slug:'the-hero-with-a-thousand-faces', title:'The Hero with a Thousand Faces', author:'Joseph Campbell', pillar:'Purpose & Meaning', secondary:['Philosophy','Wisdom Traditions'], synopsis:'A study of recurring narrative patterns across cultures and myths.', commentary:'A useful lens on transformation, calling, and the structure of journeys people recognize in their own lives.', postUrl:'/library/the-hero-with-a-thousand-faces/', externalUrl:'https://example.org/buy/the-hero-with-a-thousand-faces', related:['B003','B034','B038'] },
+  { id:'B041', slug:'the-blue-zones-of-happiness', title:'Blue Zones of Happiness', author:'Dan Buettner', pillar:'Purpose & Meaning', secondary:['Non-fiction'], synopsis:'A book exploring places and practices associated with well-being and life satisfaction.', commentary:'Helpful because it connects purpose to conditions, habits, and environments that support flourishing.', postUrl:'/library/the-blue-zones-of-happiness/', externalUrl:'https://example.org/buy/the-blue-zones-of-happiness', related:['B001','B030','B043'] },
+  { id:'B042', slug:'the-river-why', title:'The River Why', author:'David James Duncan', pillar:'Awe & Wonder', secondary:['Fiction',"Sally's Pick"], synopsis:'A novel about obsession, solitude, humor, and awakening through the natural world.', commentary:'It brings levity and depth together and makes wonder feel alive, embodied, and local.', postUrl:'/library/the-river-why/', externalUrl:'https://example.org/buy/the-river-why', related:['B005','B038','B046'] },
+  { id:'B043', slug:'small-is-beautiful', title:'Small Is Beautiful', author:'E. F. Schumacher', pillar:'Philosophy & Spirituality', secondary:['Philosophy','Non-fiction'], synopsis:'A collection of essays on economics, scale, and human-centered development.', commentary:'Still valuable because it asks whether our systems are sized for dignity, stewardship, and real human need.', postUrl:'/library/small-is-beautiful/', externalUrl:'https://example.org/buy/small-is-beautiful', related:['B001','B013','B041'] },
+  { id:'B044', slug:'let-your-life-speak', title:'Let Your Life Speak', author:'Parker J. Palmer', pillar:'Purpose & Meaning', secondary:['Spirituality','Non-fiction','Core/Essentials'], synopsis:'A short reflection on vocation, identity, and listening for the life one is meant to live.', commentary:'A warm and clarifying book about calling that avoids performance and invites honesty.', postUrl:'/library/let-your-life-speak/', externalUrl:'https://example.org/buy/let-your-life-speak', related:['B003','B018','B034'] },
+  { id:'B045', slug:'the-true-and-only-heaven', title:'The True and Only Heaven', author:'Christopher Lasch', pillar:'Luck & Randomness', secondary:['Philosophy','Non-fiction'], synopsis:'A cultural critique of progress and modern expectations.', commentary:'Useful for questioning inherited assumptions about advancement, control, and inevitability.', postUrl:'/library/the-true-and-only-heaven/', externalUrl:'https://example.org/buy/the-true-and-only-heaven', related:['B016','B023','B049'] },
+  { id:'B046', slug:'the-seed-keeper', title:'The Seed Keeper', author:'Diane Wilson', pillar:'Belonging', secondary:['Fiction','Wisdom Traditions'], synopsis:'A novel about memory, land, family, and cultural inheritance.', commentary:'A strong bridge between story, place, and belonging across generations.', postUrl:'/library/the-seed-keeper/', externalUrl:'https://example.org/buy/the-seed-keeper', related:['B004','B009','B042'] },
+  { id:'B047', slug:'no-death-no-fear', title:'No Death, No Fear', author:'Thich Nhat Hanh', pillar:'Philosophy & Spirituality', secondary:['Spirituality','Wisdom Traditions'], synopsis:'A spiritual reflection on fear, loss, and interbeing.', commentary:'A calming and generous book that helps readers approach uncertainty with greater steadiness.', postUrl:'/library/no-death-no-fear/', externalUrl:'https://example.org/buy/no-death-no-fear', related:['B007','B014','B033'] },
+  { id:'B048', slug:'the-garden-of-evening-mists', title:'The Garden of Evening Mists', author:'Tan Twan Eng', pillar:'Relationship', secondary:['Fiction'], synopsis:'A novel about memory, trauma, beauty, and the relationships that shape healing.', commentary:'A literary work that shows how care, attention, and art can coexist with grief and history.', postUrl:'/library/the-garden-of-evening-mists/', externalUrl:'https://example.org/buy/the-garden-of-evening-mists', related:['B035','B039','B050'] },
+  { id:'B049', slug:'the-precipice', title:'The Precipice', author:'Toby Ord', pillar:'Luck & Randomness', secondary:['Non-fiction','Philosophy'], synopsis:"A book about existential risk and humanity's long-term future.", commentary:'Relevant because it widens the frame of responsibility and asks how we think about uncertainty at civilizational scale.', postUrl:'/library/the-precipice/', externalUrl:'https://example.org/buy/the-precipice', related:['B024','B025','B045'] },
+  { id:'B050', slug:'anam-cara', title:'Anam Cara', author:"John O'Donohue", pillar:'Relationship', secondary:['Spirituality',"Sally's Pick"], synopsis:'A poetic meditation on friendship, soul, and the inner life of relationship.', commentary:'A beautiful choice for the library because it treats relationship as sacred, spacious, and sustaining.', postUrl:'/library/anam-cara/', externalUrl:'https://example.org/buy/anam-cara', related:['B006','B018','B029'] }
+];
+
+const EDGES_RAW = [
+  { source:'B001', target:'B030', strength:2, reason:'Shared focus on behavior change and intentional practice' },
+  { source:'B001', target:'B041', strength:2, reason:'Complementary perspective on habits and life design' },
+  { source:'B001', target:'B043', strength:2, reason:'Common interest in systems sized for human flourishing' },
+  { source:'B002', target:'B008', strength:3, reason:'Connection through gathering, care, and human relationship' },
+  { source:'B002', target:'B017', strength:2, reason:'Shared relevance to social connection and community practice' },
+  { source:'B002', target:'B036', strength:3, reason:'Both connect relational design to collective action' },
+  { source:'B003', target:'B040', strength:3, reason:'Shared exploration of meaning and life purpose' },
+  { source:'B003', target:'B044', strength:3, reason:'Both invite reflection on vocation and deeper purpose' },
+  { source:'B003', target:'B022', strength:2, reason:'Meaning pursued through journey and inner calling' },
+  { source:'B004', target:'B027', strength:3, reason:'Shared ecological and reciprocal worldview' },
+  { source:'B004', target:'B039', strength:2, reason:'Common attention to place, nature, and practice' },
+  { source:'B004', target:'B046', strength:2, reason:'Themes of land, memory, and interdependence' },
+  { source:'B005', target:'B015', strength:2, reason:'Wonder expressed through accessible and beloved form' },
+  { source:'B005', target:'B021', strength:2, reason:'Shared tone of attention, tenderness, and reflection' },
+  { source:'B006', target:'B029', strength:3, reason:'Both ask what love requires beyond sentiment' },
+  { source:'B006', target:'B050', strength:2, reason:'Relationship framed with tenderness and spiritual depth' },
+  { source:'B007', target:'B014', strength:3, reason:'Spiritual reflection on suffering and openness' },
+  { source:'B007', target:'B031', strength:2, reason:'Poetic spiritual language and hospitality to life' },
+  { source:'B007', target:'B047', strength:3, reason:'Shared contemplative approach to fear and impermanence' },
+  { source:'B008', target:'B018', strength:2, reason:'Relationship joined with community and responsibility' },
+  { source:'B008', target:'B029', strength:3, reason:'Love treated as a practice and discipline' },
+  { source:'B009', target:'B035', strength:2, reason:'Belonging reimagined under pressure and instability' },
+  { source:'B009', target:'B046', strength:2, reason:'Interdependence expressed through land and story' },
+  { source:'B010', target:'B033', strength:2, reason:'Practical spiritual framing for everyday life' },
+  { source:'B010', target:'B044', strength:3, reason:'Growth and vocation approached with warmth and reflection' },
+  { source:'B011', target:'B031', strength:2, reason:'Spiritual interiority expressed through lyrical form' },
+  { source:'B011', target:'B050', strength:2, reason:'Grace, soul, and relationship as sustaining forces' },
+  { source:'B012', target:'B026', strength:2, reason:'Belonging examined through movement and social imagination' },
+  { source:'B012', target:'B028', strength:2, reason:'Institutions and belonging in public life' },
+  { source:'B012', target:'B032', strength:3, reason:'Systemic structures shaping identity and opportunity' },
+  { source:'B013', target:'B021', strength:2, reason:'Mortality and vulnerability met with gentleness' },
+  { source:'B013', target:'B043', strength:2, reason:'Dignity and scale in human-centered systems' },
+  { source:'B014', target:'B033', strength:2, reason:'Practical spiritual guidance for difficult moments' },
+  { source:'B014', target:'B047', strength:3, reason:'Compassionate approach to fear and uncertainty' },
+  { source:'B016', target:'B023', strength:2, reason:'Choice, judgment, and the stories people tell about outcomes' },
+  { source:'B016', target:'B024', strength:3, reason:'Chance and cognition explored in accessible ways' },
+  { source:'B016', target:'B045', strength:2, reason:'Alternative futures and doubts about progress' },
+  { source:'B017', target:'B026', strength:2, reason:'Human cooperation and mutual support' },
+  { source:'B017', target:'B036', strength:3, reason:'Community practice and relational change' },
+  { source:'B018', target:'B044', strength:2, reason:'Calling and relationship shaped by inner life' },
+  { source:'B018', target:'B050', strength:3, reason:'Spiritual depth in human connection' },
+  { source:'B019', target:'B025', strength:2, reason:'Ethics and moral reasoning in divided contexts' },
+  { source:'B019', target:'B028', strength:2, reason:'Leadership tied to civic courage' },
+  { source:'B019', target:'B037', strength:2, reason:'Values and generosity in public life' },
+  { source:'B020', target:'B027', strength:3, reason:'Shared concern for reciprocity and abundance' },
+  { source:'B020', target:'B036', strength:2, reason:'Purpose linked to systems and relational practice' },
+  { source:'B020', target:'B037', strength:3, reason:'Money, gift, and generosity beyond transaction' },
+  { source:'B021', target:'B030', strength:2, reason:'Attention, pace, and the conditions for a meaningful life' },
+  { source:'B022', target:'B015', strength:2, reason:'Accessible, symbolic journeys toward meaning' },
+  { source:'B023', target:'B024', strength:3, reason:'Behavioral science and decision making' },
+  { source:'B023', target:'B045', strength:2, reason:'Questioning assumptions about rational control and progress' },
+  { source:'B024', target:'B049', strength:2, reason:'Risk, uncertainty, and judgment at different scales' },
+  { source:'B025', target:'B028', strength:2, reason:'Ethics and public life' },
+  { source:'B025', target:'B049', strength:2, reason:'Moral reasoning under uncertainty' },
+  { source:'B026', target:'B032', strength:2, reason:'Shared challenge to narrow narratives about hierarchy and human worth' },
+  { source:'B027', target:'B037', strength:3, reason:'Gift economies and non-transactional value' },
+  { source:'B028', target:'B032', strength:2, reason:'Belonging shaped by power and exclusion' },
+  { source:'B029', target:'B050', strength:2, reason:"Love, soul, and the deep interior life of relationship" },
+  { source:'B030', target:'B041', strength:2, reason:'Purpose supported by attention, environment, and practice' },
+  { source:'B031', target:'B047', strength:2, reason:'Spiritual spaciousness in the face of fear and change' },
+  { source:'B033', target:'B047', strength:2, reason:'Practical spiritual clarity and calm' },
+  { source:'B034', target:'B040', strength:3, reason:'Mythic structure and meaning-making' },
+  { source:'B034', target:'B044', strength:2, reason:'Narrative and calling' },
+  { source:'B034', target:'B038', strength:2, reason:'Epic story as a carrier of enduring pattern' },
+  { source:'B035', target:'B048', strength:2, reason:'Belonging and healing in the wake of rupture' },
+  { source:'B038', target:'B040', strength:2, reason:'Journey narratives and transformation' },
+  { source:'B039', target:'B046', strength:2, reason:'Place, memory, and living relationship with land' },
+  { source:'B039', target:'B048', strength:2, reason:'Beauty, attention, and the shaping power of place' },
+  { source:'B041', target:'B043', strength:2, reason:'Human flourishing shaped by environments and scale' },
+  { source:'B045', target:'B049', strength:2, reason:'Contingency and the long future' },
+  { source:'B046', target:'B042', strength:2, reason:'Nature, memory, and belonging through story' },
+  { source:'B048', target:'B050', strength:2, reason:'Healing and relational depth' }
+];
+
+/* ════════════════════════════════════════════════
+   BUILD CYTOSCAPE ELEMENTS
+   ════════════════════════════════════════════════ */
+
+// Index books by id for quick lookup
+const BOOK_MAP = {};
+BOOKS.forEach(b => { BOOK_MAP[b.id] = b; });
+
+// Compute short labels (max 20 chars, word-wrappable)
+function makeLabel(title) {
+  if (title.length <= 18) return title;
+  const words = title.split(' ');
+  let line = '', result = '';
+  for (const w of words) {
+    if ((line + ' ' + w).trim().length > 14 && line) {
+      result += (result ? '\n' : '') + line.trim();
+      line = w;
+    } else {
+      line = (line + ' ' + w).trim();
+    }
+  }
+  if (line) result += (result ? '\n' : '') + line.trim();
+  return result;
+}
+
+// Edge width / opacity by strength
+function edgeWidth(s)   { return s === 1 ? 1.2 : s === 2 ? 2 : 3.5; }
+function edgeOpacity(s) { return s === 1 ? 0.35 : s === 2 ? 0.55 : 0.88; }
+
+const elements = [];
+
+// ── Book nodes ──
+BOOKS.forEach(book => {
+  const color = PILLAR_COLOR[book.pillar];
+  elements.push({
+    group: 'nodes',
+    data: {
+      id: book.id,
+      label: makeLabel(book.title),
+      title: book.title,
+      author: book.author,
+      pillar: book.pillar,
+      color: color,
+      slug: book.slug,
+      secondary: book.secondary,
+      synopsis: book.synopsis,
+      commentary: book.commentary,
+      postUrl: book.postUrl,
+      externalUrl: book.externalUrl,
+      related: book.related
+    }
+  });
+});
+
+// ── Relationship edges ──
+EDGES_RAW.forEach((e, i) => {
+  const srcBook = BOOK_MAP[e.source];
+  const color = PILLAR_COLOR[srcBook.pillar];
+  elements.push({
+    group: 'edges',
+    data: {
+      id: 'e' + i,
+      source: e.source,
+      target: e.target,
+      strength: e.strength,
+      reason: e.reason,
+      color: color,
+      width: edgeWidth(e.strength),
+      baseOpacity: edgeOpacity(e.strength)
+    }
+  });
+});
+
+/* ════════════════════════════════════════════════
+   CYTOSCAPE INIT
+   ════════════════════════════════════════════════ */
+
+const cy = cytoscape({
+  container: document.getElementById('cy'),
+  elements: elements,
+
+  style: [
+    {
+      selector: 'node',
+      style: {
+        'background-color': 'data(color)',
+        'border-color': 'data(color)',
+        'border-width': 2,
+        'border-opacity': 0.4,
+        'label': 'data(label)',
+        'color': '#fff',
+        'font-size': 9,
+        'font-weight': 600,
+        'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        'text-wrap': 'wrap',
+        'text-max-width': 72,
+        'text-valign': 'center',
+        'text-halign': 'center',
+        'text-outline-color': 'data(color)',
+        'text-outline-width': 1.5,
+        'width': 72,
+        'height': 72,
+        'transition-property': 'opacity, border-width, border-color, width, height',
+        'transition-duration': '180ms'
+      }
+    },
+    {
+      selector: 'node.selected',
+      style: {
+        'border-color': '#f97316',
+        'border-width': 4,
+        'border-opacity': 1,
+        'width': 84,
+        'height': 84,
+        'font-size': 9.5,
+        'z-index': 10
+      }
+    },
+    {
+      selector: 'node.neighbor',
+      style: {
+        'border-color': '#f97316',
+        'border-width': 2.5,
+        'border-opacity': 0.7,
+        'width': 76,
+        'height': 76,
+        'z-index': 5
+      }
+    },
+    {
+      selector: 'node.faded',
+      style: {
+        'opacity': 0.1
+      }
+    },
+    {
+      selector: 'edge',
+      style: {
+        'line-color': 'data(color)',
+        'width': 'data(width)',
+        'opacity': 'data(baseOpacity)',
+        'curve-style': 'bezier',
+        'target-arrow-shape': 'none',
+        'transition-property': 'opacity, width, line-color',
+        'transition-duration': '180ms'
+      }
+    },
+    {
+      selector: 'edge.selected',
+      style: {
+        'line-color': '#f97316',
+        'opacity': 0.9,
+        'width': 3,
+        'z-index': 10
+      }
+    },
+    {
+      selector: 'edge.faded',
+      style: {
+        'opacity': 0.04
+      }
+    }
+  ],
+
+  layout: {
+    name: 'cose',
+    animate: true,
+    animationDuration: 1800,
+    animationEasing: 'ease-out-cubic',
+    fit: true,
+    padding: 50,
+    nodeRepulsion: () => 9000,
+    nodeOverlap: 6,
+    idealEdgeLength: () => 90,
+    edgeElasticity: () => 32,
+    nestingFactor: 1.2,
+    gravity: 1.2,
+    numIter: 1000,
+    initialTemp: 1000,
+    coolingFactor: 0.99,
+    minTemp: 1.0,
+    randomize: false
+  },
+
+  wheelSensitivity: 0.3,
+  minZoom: 0.08,
+  maxZoom: 4
+});
+
+/* ════════════════════════════════════════════════
+   STATE
+   ════════════════════════════════════════════════ */
+
+let selectedNode = null;
+let activeFilters = new Set(); // set of pillar labels
+
+/* ════════════════════════════════════════════════
+   TOOLTIP
+   ════════════════════════════════════════════════ */
+
+const tooltip = document.getElementById('tooltip');
+
+function showNodeTooltip(node, evt) {
+  const d = node.data();
+  const color = d.color;
+  tooltip.innerHTML = `
+    <div class="tt-title">${d.title}</div>
+    <div class="tt-author">by ${d.author}</div>
+    <div class="tt-pillar" style="color:${color}">${d.pillar}</div>
+  `;
+  positionTooltip(evt);
+  tooltip.style.opacity = '1';
+}
+
+function showEdgeTooltip(edge, evt) {
+  const d = edge.data();
+  const srcBook = BOOK_MAP[d.source];
+  const tgtBook = BOOK_MAP[d.target];
+  const strengthLabel = d.strength === 3 ? 'Strong' : d.strength === 2 ? 'Moderate' : 'Thematic';
+  tooltip.innerHTML = `
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;opacity:.6;margin-bottom:4px">${strengthLabel} Connection</div>
+    <div style="font-size:12px;font-weight:600;margin-bottom:2px">${srcBook.title}</div>
+    <div style="font-size:11px;opacity:.6;margin-bottom:5px">↔ ${tgtBook.title}</div>
+    <div class="tt-reason">${d.reason}</div>
+  `;
+  positionTooltip(evt);
+  tooltip.style.opacity = '1';
+}
+
+function positionTooltip(evt) {
+  const x = evt.originalEvent.clientX + 15;
+  const y = evt.originalEvent.clientY - 10;
+  // Keep tooltip within viewport
+  const rect = tooltip.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  tooltip.style.left = Math.min(x, vw - 260) + 'px';
+  tooltip.style.top  = Math.min(y, vh - 120) + 'px';
+}
+
+function hideTooltip() {
+  tooltip.style.opacity = '0';
+}
+
+cy.on('mouseover', 'node', (e) => showNodeTooltip(e.target, e));
+cy.on('mousemove', 'node', (e) => positionTooltip(e));
+cy.on('mouseout',  'node', hideTooltip);
+cy.on('mouseover', 'edge', (e) => showEdgeTooltip(e.target, e));
+cy.on('mousemove', 'edge', (e) => positionTooltip(e));
+cy.on('mouseout',  'edge', hideTooltip);
+
+/* ════════════════════════════════════════════════
+   SELECTION & HIGHLIGHT
+   ════════════════════════════════════════════════ */
+
+function clearHighlight() {
+  cy.elements().removeClass('selected neighbor faded');
+  selectedNode = null;
+}
+
+function highlightNode(node) {
+  clearHighlight();
+  selectedNode = node;
+
+  const connectedEdges = node.connectedEdges();
+  const neighborNodes  = connectedEdges.connectedNodes().not(node);
+
+  cy.elements().addClass('faded');
+  node.removeClass('faded').addClass('selected');
+  connectedEdges.removeClass('faded').addClass('selected');
+  neighborNodes.removeClass('faded').addClass('neighbor');
+}
+
+cy.on('tap', 'node', function(e) {
+  e.stopPropagation();
+  highlightNode(e.target);
+  openSidebar(e.target.data());
+});
+
+cy.on('tap', function(e) {
+  if (e.target === cy) {
+    clearHighlight();
+    closeSidebar();
+  }
+});
+
+/* ════════════════════════════════════════════════
+   SIDEBAR
+   ════════════════════════════════════════════════ */
+
+const sidebar  = document.getElementById('sidebar');
+const sbType   = document.getElementById('sb-type');
+const sbBody   = document.getElementById('sb-body');
+const sbClose  = document.getElementById('sb-close');
+
+function openSidebar(d) {
+  const color = d.color;
+  const words = d.title.replace(/[^a-zA-Z ]/g, ' ').split(' ').filter(w => w.length > 2);
+  const initials = words.length >= 2
+    ? (words[0][0] + words[1][0]).toUpperCase()
+    : d.title.slice(0, 2).toUpperCase();
+
+  const tags = (d.secondary || []).map(t =>
+    `<span class="tag-pill">${t}</span>`
+  ).join('');
+
+  const relatedPills = (d.related || []).map(rid => {
+    const rb = BOOK_MAP[rid];
+    return rb
+      ? `<button class="related-pill" data-id="${rid}" title="${rb.author}">${rb.title}</button>`
+      : '';
+  }).join('');
+
+  sbType.textContent = 'BOOK';
+  sbType.style.color = color;
+
+  sbBody.innerHTML = `
+    <div class="cover-banner" style="background:linear-gradient(150deg,${color}22,${color}44)">
+      <div class="cover-book" style="background:${color}">${initials}</div>
+    </div>
+    <div class="sb-content">
+      <div class="sb-title">${d.title}</div>
+      <div class="sb-author">by ${d.author}</div>
+      <div>
+        <span class="pillar-badge" style="background:${color}18;color:${color}">
+          <span class="pillar-dot" style="background:${color}"></span>
+          ${d.pillar}
+        </span>
+      </div>
+      ${tags ? `<div class="tags-row">${tags}</div>` : ''}
+      <hr class="sb-divider">
+      <div class="sb-section">
+        <div class="sb-label">Synopsis</div>
+        <div class="sb-text">${d.synopsis || 'No synopsis available.'}</div>
+      </div>
+      <div class="sb-section">
+        <div class="sb-label">Why It Matters — Gambrell Commentary</div>
+        <div class="sb-text commentary">${d.commentary || 'Commentary coming soon.'}</div>
+      </div>
+      ${relatedPills ? `
+      <hr class="sb-divider">
+      <div class="sb-section">
+        <div class="sb-label">Connected Books</div>
+        <div class="related-pills">${relatedPills}</div>
+      </div>` : ''}
+      <hr class="sb-divider">
+      <a class="learn-more-btn" href="${d.postUrl}" target="_blank">Learn More →</a>
+      <button class="bookmark-btn" id="bm-btn">☆ Add to My Reading List</button>
+    </div>
+  `;
+
+  sidebar.classList.add('open');
+
+  // Bookmark toggle
+  const bmBtn = document.getElementById('bm-btn');
+  if (bmBtn) {
+    bmBtn.onclick = function() {
+      const saved = this.innerHTML.includes('Add');
+      this.innerHTML = saved ? '★ Saved to Reading List' : '☆ Add to My Reading List';
+    };
+  }
+
+  // Related book pills → navigate graph
+  sbBody.querySelectorAll('.related-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const rid = btn.dataset.id;
+      const target = cy.getElementById(rid);
+      if (target.length) {
+        cy.animate({ fit: { eles: target, padding: 120 } }, { duration: 500 });
+        setTimeout(() => {
+          highlightNode(target);
+          openSidebar(target.data());
+        }, 520);
+      }
+    });
+  });
+}
+
+function closeSidebar() {
+  sidebar.classList.remove('open');
+}
+
+sbClose.addEventListener('click', () => {
+  closeSidebar();
+  clearHighlight();
+});
+
+/* ════════════════════════════════════════════════
+   PILLAR FILTERS
+   ════════════════════════════════════════════════ */
+
+function applyFilters() {
+  if (activeFilters.size === 0) {
+    cy.nodes().forEach(n => n.style('opacity', 1));
+    cy.edges().forEach(e => e.style('opacity', e.data('baseOpacity')));
+    return;
+  }
+
+  cy.nodes().forEach(n => {
+    const inFilter = activeFilters.has(n.data('pillar'));
+    n.style('opacity', inFilter ? 1 : 0.06);
+  });
+
+  cy.edges().forEach(e => {
+    const src = cy.getElementById(e.data('source'));
+    const tgt = cy.getElementById(e.data('target'));
+    const srcIn = activeFilters.has(src.data('pillar'));
+    const tgtIn = activeFilters.has(tgt.data('pillar'));
+    e.style('opacity', (srcIn || tgtIn) ? e.data('baseOpacity') : 0.03);
+  });
+}
+
+const filterbar = document.getElementById('filterbar');
+
+// Clear button
+const clearBtn = document.createElement('button');
+clearBtn.className = 'chip-clear';
+clearBtn.textContent = '× Clear';
+clearBtn.addEventListener('click', () => {
+  activeFilters.clear();
+  filterbar.querySelectorAll('.chip').forEach(c => c.classList.add('off'));
+  clearBtn.classList.remove('visible');
+  applyFilters();
+  if (selectedNode) highlightNode(selectedNode);
+});
+filterbar.appendChild(clearBtn);
+
+PILLARS.forEach(p => {
+  const chip = document.createElement('div');
+  chip.className = 'chip off';
+  chip.style.cssText = `background:${p.color}18;border-color:${p.color};color:${p.color}`;
+  chip.textContent = p.label;
+  chip.title = `Show only ${p.label} books`;
+
+  chip.addEventListener('click', () => {
+    if (activeFilters.has(p.label)) {
+      activeFilters.delete(p.label);
+      chip.classList.add('off');
+    } else {
+      activeFilters.add(p.label);
+      chip.classList.remove('off');
+    }
+    clearBtn.classList.toggle('visible', activeFilters.size > 0);
+    applyFilters();
+  });
+
+  filterbar.appendChild(chip);
+});
+
+/* ════════════════════════════════════════════════
+   LEGEND
+   ════════════════════════════════════════════════ */
+
+const legend = document.getElementById('legend');
+legend.innerHTML = `
+  <div class="legend-section">
+    <div class="legend-title">Pillars</div>
+    ${PILLARS.map(p => `
+      <div class="legend-row">
+        <div class="legend-dot" style="background:${p.color}"></div>
+        <span>${p.label}</span>
+      </div>
+    `).join('')}
+  </div>
+  <div class="legend-section">
+    <div class="legend-title">Connection Strength</div>
+    <div class="legend-row"><div class="legend-line s1"></div><span>Thematic</span></div>
+    <div class="legend-row"><div class="legend-line s2"></div><span>Moderate</span></div>
+    <div class="legend-row"><div class="legend-line s3"></div><span>Strong</span></div>
+  </div>
+`;
+
+/* ════════════════════════════════════════════════
+   STATUS BAR
+   ════════════════════════════════════════════════ */
+
+document.getElementById('statusbar').textContent =
+  `${BOOKS.length} books · ${EDGES_RAW.length} connections`;
+
+/* ════════════════════════════════════════════════
+   ZOOM CONTROLS
+   ════════════════════════════════════════════════ */
+
+document.getElementById('btn-fit').addEventListener('click', () => {
+  cy.animate({ fit: { padding: 50 } }, { duration: 500 });
+});
+document.getElementById('btn-zin').addEventListener('click', () => {
+  cy.animate({ zoom: { level: cy.zoom() * 1.3, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } } }, { duration: 250 });
+});
+document.getElementById('btn-zout').addEventListener('click', () => {
+  cy.animate({ zoom: { level: cy.zoom() * 0.77, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } } }, { duration: 250 });
+});
+
+/* ════════════════════════════════════════════════
+   RESIZE
+   ════════════════════════════════════════════════ */
+
+window.addEventListener('resize', () => cy.resize());
+</script>
+</body>
+</html>
